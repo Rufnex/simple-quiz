@@ -10,9 +10,11 @@ Teste dein Wissen in verschiedenen Kategorien und sammle möglichst viele Punkte
 
 Du möchtest die Quiz-App direkt ausprobieren?
 
-👉 **Jetzt testen unter [https://jg-webdesign.de/demos/simple-quiz/](https://jg-webdesign.de/demos/simple-quiz/)**
+👉 <strong><a href="https://jg-webdesign.de/demos/simple-quiz/" target="_blank" rel="noopener noreferrer">
+Jetzt testen unter jg-webdesign.de/demos/simple-quiz
+</a></strong>
 
-Feedback & Ideen sind willkommen. 😎
+Die Quiz-App läuft direkt im Browser – responsiv. Viel Spaß beim Rätseln! 🎉
 
 ---
 
