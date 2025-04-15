@@ -6,6 +6,16 @@ Teste dein Wissen in verschiedenen Kategorien und sammle möglichst viele Punkte
 
 ---
 
+## 🌐 Live-Demo
+
+Du möchtest die Quiz-App direkt ausprobieren?
+
+👉 **[Jetzt testen unter www.xxx.de](https://jg-webdesign.de/demos/simple-quiz/)**
+
+Feedback & Ideen sind willkommen. 😎
+
+---
+
 ## 🧩 So funktioniert das Quiz
 
 ### 1. Quiz starten
