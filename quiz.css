@@ -224,3 +224,136 @@
   font-size: 0.9rem;
   color: #555;
 }
+
+/* Review-Container für die Fragenübersicht (Karten-Design, zusammenklappbar) */
+#quizModal .quiz-card .review-container {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 1rem;
+  padding: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+#quizModal .quiz-card .review-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+#quizModal .quiz-card .review-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+#quizModal .quiz-card .review-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+#quizModal .quiz-card .review-card {
+  background: #fff;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  animation: cardFadeIn 0.3s ease;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#quizModal .quiz-card .review-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+#quizModal .quiz-card .review-card.correct {
+  border-left: 3px solid #2ecc71;
+}
+
+#quizModal .quiz-card .review-card.incorrect {
+  border-left: 3px solid #e74c3c;
+}
+
+#quizModal .quiz-card .review-card.unanswered {
+  border-left: 3px solid #f39c12;
+}
+
+#quizModal .quiz-card .review-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: bold;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+#quizModal .quiz-card .review-card-header .review-card-status {
+  margin-right: 0.4rem;
+  font-size: 0.9rem;
+}
+
+#quizModal .quiz-card .review-card-header .review-card-toggle {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+#quizModal .quiz-card .review-card-body {
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+#quizModal .quiz-card .review-card-body.open {
+  max-height: 300px; /* Anpassen je nach Inhalt */
+  padding: 0.5rem;
+  opacity: 1;
+}
+
+#quizModal .quiz-card .review-card-body .review-answer {
+  margin: 0.2rem 0;
+  padding: 0.3rem;
+  border-radius: 3px;
+  position: relative;
+}
+
+#quizModal .quiz-card .review-card-body .correct-answer {
+  background: #2ecc71;
+  color: white;
+}
+
+#quizModal .quiz-card .review-card-body .wrong-answer {
+  background: #e74c3c;
+  color: white;
+}
+
+#quizModal .quiz-card .review-card-body .correct-option {
+  background: #b8e0b8;
+  color: #111;
+}
+
+#quizModal .quiz-card .review-card-body .review-explanation {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #555;
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  #quizModal .quiz-card,
+  #categoryModal .modal-content,
+  #restartModal .modal-content {
+    max-width: 95%;
+    padding: 1.5rem;
+  }
+
+  #quizModal .quiz-card .review-container {
+    max-height: 150px;
+  }
+}

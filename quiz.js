@@ -1,396 +1,590 @@
 const QuizApp = (() => {
-  let current = 0, score = 0, questions = [];
-  let timerInterval = null, timeLeft, isPaused = false, questionCount = 'all', withTimer = true, showRestart = true;
-  let responseTimes = [], correctAnswers = 0, totalQuestions = 0;
-  let pauseDurations = [], pauseStart = 0;
+  // Zentraler Zustand
+  const state = {
+    current: 0,
+    score: 0,
+    questions: [],
+    timerInterval: null,
+    timeLeft: 0,
+    isPaused: false,
+    questionCount: 'all',
+    withTimer: true,
+    showRestart: true,
+    responseTimes: [],
+    correctAnswers: 0,
+    totalQuestions: 0,
+    pauseDurations: [],
+    pauseStart: 0,
+    pausedThisRound: false,
+    penalties: 0,
+    pausePenalty: false,
+  };
 
-  questionSets.mixed = Object.values(questionSets).flat();
+  // Mixed-Kategorie dynamisch füllen
+  questionSets.mixed.questions = Object.values(questionSets)
+    .filter(category => category !== questionSets.mixed)
+    .flatMap(category => category.questions);
 
-  function shuffle(array) {
+  // Spezielle Kategorien füllen
+  questionSets.general_with_penalty.questions = [...questionSets.general.questions];
+  questionSets.quickstart.questions = [...questionSets.general.questions];
+
+  // DOM-Elemente (Caching)
+  const elements = {};
+
+  // Utility-Funktion: Array mischen
+  const shuffle = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
-  }
+  };
 
-  function init() {
-    // Kategorieauswahl-Modal erstellen (nur für Fallback)
-    const categoryModal = document.createElement('div');
-    categoryModal.id = 'categoryModal';
-    categoryModal.className = 'modal';
-    categoryModal.innerHTML = `
-      <div class="modal-content">
-        <h2>Kategorie wählen</h2>
-        <div class="grid">
-          <div class="category-card" data-category="general"><span>🧠</span>Allgemeinwissen</div>
-          <div class="category-card" data-category="science"><span>🧪</span>Wissenschaft</div>
-          <div class="category-card" data-category="art"><span>🎨</span>Kunst</div>
-          <div class="category-card" data-category="geo"><span>🌍</span>Geografie</div>
-          <div class="category-card" data-category="music"><span>🎵</span>Musik</div>
-          <div class="category-card" data-category="mixed"><span>🎲</span>Zufall</div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(categoryModal);
+  // Utility-Funktion: Sicherer DOM-Zugriff
+  const getElement = (id) => {
+    const element = document.getElementById(id);
+    if (!element) throw new Error(`Element with ID "${id}" not found`);
+    return element;
+  };
 
-    // Quiz-Modal erstellen
-    const quizModal = document.createElement('div');
-    quizModal.id = 'quizModal';
-    quizModal.className = 'modal';
-    quizModal.style.display = 'none';
-    quizModal.innerHTML = `
-      <div class="quiz-card">
-        <div class="feedback-badge" style="left:-14px;right:auto;top:-14px;background:#ddd;cursor:pointer;" id="closeQuiz">✖</div>
-        <div class="feedback-badge" id="badge"><i class="fas fa-question"></i></div>
-        <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-        <div id="questionNumber"></div>
-        <div class="current-score" id="currentScore">Punkte: 0</div>
-        <div class="question" id="question">Frage wird geladen...</div>
-        <div class="answers" id="answers"></div>
-        <div id="timerDisplay" style="margin-top:1rem;font-weight:bold;"></div>
-        <div id="timerBarContainer"><div id="timerBar"></div></div>
-        <button class="pause-btn" id="pauseBtn">⏸ Pause</button>
-        <div class="explanation" id="explanation"></div>
-        <div class="bonus-feedback" id="bonusFeedback"></div>
-        <button class="next-btn" id="nextBtn" style="display:none;">Nächste Frage</button>
-        <div class="score" id="score" style="display:none;"></div>
-        <button class="next-btn" id="closeBtn" style="display:none;">Quiz beenden</button>
-        <div class="highscore" id="highscore" style="display:none;"></div>
-        <div class="stats" id="stats" style="display:none;"></div>
-      </div>
-    `;
-    document.body.appendChild(quizModal);
+  // DOM-Element erstellen
+  const createElement = (tag, attrs = {}, children = []) => {
+    const element = document.createElement(tag);
+    Object.entries(attrs).forEach(([key, value]) => {
+      if (key === 'style') {
+        Object.assign(element.style, value);
+      } else if (key === 'className') {
+        element.className = value;
+      } else {
+        element.setAttribute(key, value);
+      }
+    });
+    children.forEach(child => {
+      if (typeof child === 'string') {
+        element.appendChild(document.createTextNode(child));
+      } else {
+        element.appendChild(child);
+      }
+    });
+    return element;
+  };
 
-    // Restart-Modal erstellen
-    const restartModal = document.createElement('div');
-    restartModal.id = 'restartModal';
-    restartModal.className = 'modal';
-    restartModal.style.display = 'none';
-    restartModal.innerHTML = `
-      <div class="modal-content">
-        <h2>Quiz beendet</h2>
-        <p>Möchtest du ein neues Quiz starten?</p>
-        <div class="grid">
-          <div class="category-card" data-category="general"><span>🧠</span>Allgemeinwissen</div>
-          <div class="category-card" data-category="science"><span>🧪</span>Wissenschaft</div>
-          <div class="category-card" data-category="art"><span>🎨</span>Kunst</div>
-          <div class="category-card" data-category="geo"><span>🌍</span>Geografie</div>
-          <div class="category-card" data-category="music"><span>🎵</span>Musik</div>
-          <div class="category-card" data-category="mixed"><span>🎲</span>Zufall</div>
-        </div>
-        <button class="next-btn" id="closeRestartBtn">Schließen</button>
-      </div>
-    `;
-    document.body.appendChild(restartModal);
+  // Hilfsfunktion: Kategorien-Liste dynamisch aus questionSets generieren
+  const generateCategories = () => {
+    const config = window.QuizConfig || { dynamic: false };
+    let categories = Object.keys(questionSets).map(category => {
+      const meta = questionSets[category].meta || { icon: '❓', label: category }; // Fallback
+      return {
+        category,
+        icon: meta.icon,
+        label: meta.label,
+        options: questionSets[category].options || { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false }, // Fallback-Optionen
+      };
+    });
+
+    // Filter: Nur Kategorien anzeigen, die in QuizConfig.categories aufgeführt sind (falls definiert und dynamic: true)
+    if (config.dynamic && config.categories) {
+      categories = categories.filter(cat => config.categories.includes(cat.category));
+    }
+
+    // Sortierung: Alphabetisch nach Label
+    categories.sort((a, b) => a.label.localeCompare(b.label));
+
+    return categories;
+  };
+
+  // Kategorien dynamisch in index.html rendern
+  const renderCategories = () => {
+    const quizLinks = document.querySelector('.quiz-links');
+    if (!quizLinks) throw new Error('Element with class "quiz-links" not found');
+
+    const categories = generateCategories();
+
+    quizLinks.innerHTML = ''; // Bestehende Karten entfernen
+
+    categories.forEach(cat => {
+      // Spezielle Behandlung für "choose"-Option
+      const options = cat.category === 'choose'
+        ? { choose: true }
+        : { ...cat.options, category: cat.category };
+
+      const card = createElement('div', { className: 'quiz-card-start' }, [
+        createElement('div', { className: 'icon' }, [cat.icon]),
+        createElement('span', {}, [cat.label]),
+      ]);
+
+      card.onclick = () => QuizApp.open(options);
+      quizLinks.appendChild(card);
+    });
+  };
+
+  // Kategorie-Modal erstellen
+  const createCategoryModal = () => {
+    const categories = generateCategories();
+
+    return createElement('div', { id: 'categoryModal', className: 'modal' }, [
+      createElement('div', { className: 'modal-content' }, [
+        createElement('h2', {}, ['Kategorie wählen']),
+        createElement('div', { className: 'grid' }, categories.map(cat =>
+          createElement('div', { className: 'category-card', 'data-category': cat.category }, [
+            createElement('span', {}, [cat.icon]),
+            cat.label,
+          ])
+        )),
+      ]),
+    ]);
+  };
+
+  // Quiz-Modal erstellen
+  const createQuizModal = () => {
+    return createElement('div', { id: 'quizModal', className: 'modal', style: { display: 'none' } }, [
+      createElement('div', { className: 'quiz-card' }, [
+        createElement('div', { className: 'feedback-badge', id: 'closeQuiz', style: { left: '-14px', right: 'auto', top: '-14px', background: '#ddd', cursor: 'pointer' } }, ['✖']),
+        createElement('div', { className: 'feedback-badge', id: 'badge' }, [createElement('i', { className: 'fas fa-question' })]),
+        createElement('div', { className: 'progress-container' }, [
+          createElement('div', { className: 'progress-bar', id: 'progressBar' }),
+        ]),
+        createElement('div', { id: 'questionNumber' }),
+        createElement('div', { className: 'current-score', id: 'currentScore' }, ['Punkte: 0']),
+        createElement('div', { className: 'question', id: 'question' }, ['Frage wird geladen...']),
+        createElement('div', { className: 'answers', id: 'answers' }),
+        createElement('div', { id: 'timerDisplay', style: { marginTop: '1rem', fontWeight: 'bold' } }),
+        createElement('div', { id: 'timerBarContainer' }, [
+          createElement('div', { id: 'timerBar' }),
+        ]),
+        createElement('button', { className: 'pause-btn', id: 'pauseBtn' }, ['⏸ Pause']),
+        createElement('div', { className: 'explanation', id: 'explanation' }),
+        createElement('div', { className: 'bonus-feedback', id: 'bonusFeedback' }),
+        createElement('button', { className: 'next-btn', id: 'nextBtn', style: { display: 'none' } }, ['Nächste Frage']),
+        createElement('div', { className: 'score', id: 'score', style: { display: 'none' } }),
+        createElement('button', { className: 'next-btn', id: 'closeBtn', style: { display: 'none' } }, ['Quiz beenden']),
+        createElement('div', { className: 'highscore', id: 'highscore', style: { display: 'none' } }),
+        createElement('div', { className: 'stats', id: 'stats', style: { display: 'none' } }),
+      ]),
+    ]);
+  };
+
+  // Restart-Modal erstellen
+  const createRestartModal = () => {
+    const categories = generateCategories();
+
+    return createElement('div', { id: 'restartModal', className: 'modal', style: { display: 'none' } }, [
+      createElement('div', { className: 'modal-content' }, [
+        createElement('h2', {}, ['Quiz beendet']),
+        createElement('p', {}, ['Möchtest du ein neues Quiz starten?']),
+        createElement('div', { className: 'grid' }, categories.map(cat =>
+          createElement('div', { className: 'category-card', 'data-category': cat.category }, [
+            createElement('span', {}, [cat.icon]),
+            cat.label,
+          ])
+        )),
+        createElement('button', { className: 'next-btn', id: 'closeRestartBtn' }, ['Schließen']),
+      ]),
+    ]);
+  };
+
+  // Initialisierung
+  const init = () => {
+    // Modals erstellen
+    document.body.appendChild(createCategoryModal());
+    document.body.appendChild(createQuizModal());
+    document.body.appendChild(createRestartModal());
+
+    // DOM-Elemente cachen
+    elements.categoryModal = getElement('categoryModal');
+    elements.quizModal = getElement('quizModal');
+    elements.restartModal = getElement('restartModal');
+    elements.closeQuiz = getElement('closeQuiz');
+    elements.nextBtn = getElement('nextBtn');
+    elements.closeBtn = getElement('closeBtn');
+    elements.pauseBtn = getElement('pauseBtn');
+    elements.closeRestartBtn = getElement('closeRestartBtn');
+    elements.badge = getElement('badge');
+    elements.question = getElement('question');
+    elements.questionNumber = getElement('questionNumber');
+    elements.currentScore = getElement('currentScore');
+    elements.answers = getElement('answers');
+    elements.timerDisplay = getElement('timerDisplay');
+    elements.timerBarContainer = getElement('timerBarContainer');
+    elements.timerBar = getElement('timerBar');
+    elements.explanation = getElement('explanation');
+    elements.bonusFeedback = getElement('bonusFeedback');
+    elements.score = getElement('score');
+    elements.highscore = getElement('highscore');
+    elements.stats = getElement('stats');
+    elements.progressBar = getElement('progressBar');
+
+    // Prüfe, ob dynamische Kategorien erzeugt werden sollen
+    const config = window.QuizConfig || { dynamic: false };
+    if (config.dynamic) {
+      renderCategories();
+    }
 
     // Tastaturevents
-    document.addEventListener("keydown", e => {
-      if (e.key === "Escape") {
-        closeModal();
-        closeQuiz();
-        document.getElementById("restartModal").style.display = "none";
-      }
-      if (e.key === " " && document.getElementById("quizModal").style.display === "flex") togglePause();
-      if (document.getElementById("quizModal").style.display === "flex" && !isPaused) {
-        if (e.key === "1") handleAnswer(0);
-        if (e.key === "2") handleAnswer(1);
-        if (e.key === "3") handleAnswer(2);
-      }
-    });
+    document.addEventListener('keydown', handleKeydown);
 
     // Event-Listener
-    document.getElementById("categoryModal").addEventListener("click", e => {
-      if (e.target === document.getElementById("categoryModal")) closeModal();
+    elements.categoryModal.addEventListener('click', e => {
+      if (e.target === elements.categoryModal) closeModal();
     });
-    document.getElementById("quizModal").addEventListener("click", e => {
-      if (e.target === document.getElementById("quizModal")) closeQuiz();
+    elements.quizModal.addEventListener('click', e => {
+      if (e.target === elements.quizModal) closeQuiz();
     });
-    document.getElementById("restartModal").addEventListener("click", e => {
-      if (e.target === document.getElementById("restartModal")) document.getElementById("restartModal").style.display = "none";
+    elements.restartModal.addEventListener('click', e => {
+      if (e.target === elements.restartModal) elements.restartModal.style.display = 'none';
     });
-    document.getElementById("closeQuiz").addEventListener("click", closeQuiz);
-    document.getElementById("nextBtn").addEventListener("click", nextQuestion);
-    document.getElementById("closeBtn").addEventListener("click", closeQuiz);
-    document.getElementById("pauseBtn").addEventListener("click", togglePause);
-    document.getElementById("closeRestartBtn").addEventListener("click", () => {
-      document.getElementById("restartModal").style.display = "none";
+    elements.closeQuiz.addEventListener('click', closeQuiz);
+    elements.nextBtn.addEventListener('click', nextQuestion);
+    elements.closeBtn.addEventListener('click', closeQuiz);
+    elements.pauseBtn.addEventListener('click', togglePause);
+    elements.closeRestartBtn.addEventListener('click', () => {
+      elements.restartModal.style.display = 'none';
     });
 
     // Kategorieauswahl (Fallback)
-    document.querySelectorAll("#categoryModal .category-card").forEach(card => {
-      card.addEventListener("click", () => {
-        const category = card.getAttribute("data-category");
-        localStorage.setItem("lastCategory", category);
+    document.querySelectorAll('#categoryModal .category-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const category = card.getAttribute('data-category');
+        localStorage.setItem('lastCategory', category);
         chooseCategory(category);
       });
     });
 
     // Restart-Kategorieauswahl
-    document.querySelectorAll("#restartModal .category-card").forEach(card => {
-      card.addEventListener("click", () => {
-        const category = card.getAttribute("data-category");
-        document.getElementById("restartModal").style.display = "none";
-        QuizApp.open({ questionCount, category, withTimer, showRestart });
+    document.querySelectorAll('#restartModal .category-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const category = card.getAttribute('data-category');
+        elements.restartModal.style.display = 'none';
+        open({ questionCount: state.questionCount, category, withTimer: state.withTimer, showRestart: state.showRestart, pausePenalty: state.pausePenalty });
       });
     });
-  }
+  };
 
-  function open(options = {}) {
-  document.getElementById("pauseBtn").style.display = options.withTimer ? "inline-block" : "none";
-  pausedThisRound = false;
-  penalties = 0;
-  pausePenalty = options.pausePenalty || false;
-    // Parameter setzen
-    questionCount = options.questionCount || 'all';
+  // Tastatureingaben
+  const handleKeydown = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      closeQuiz();
+      elements.restartModal.style.display = 'none';
+    }
+    if (e.key === ' ' && elements.quizModal.style.display === 'flex') togglePause();
+    if (elements.quizModal.style.display === 'flex' && !state.isPaused) {
+      if (e.key === '1') handleAnswer(0);
+      if (e.key === '2') handleAnswer(1);
+      if (e.key === '3') handleAnswer(2);
+    }
+  };
+
+  const open = (options = {}) => {
+    elements.pauseBtn.style.display = options.withTimer ? 'inline-block' : 'none';
+    state.pausedThisRound = false;
+    state.penalties = 0;
+    state.pausePenalty = options.pausePenalty || false;
+    state.questionCount = options.questionCount || 'all';
     const category = options.category || null;
-    withTimer = options.withTimer !== undefined ? options.withTimer : true;
-    showRestart = options.showRestart !== undefined ? options.showRestart : true;
+    state.withTimer = options.withTimer !== undefined ? options.withTimer : true;
+    state.showRestart = options.showRestart !== undefined ? options.showRestart : true;
 
     // Quiz zurücksetzen
-    current = 0;
-    score = 0;
-    correctAnswers = 0;
-    responseTimes = [];
-    pauseDurations = [];
-    pauseStart = 0;
-    document.getElementById("quizModal").style.display = "none";
-    document.getElementById("score").style.display = "none";
-    document.getElementById("highscore").style.display = "none";
-    document.getElementById("closeBtn").style.display = "none";
-    document.getElementById("stats").style.display = "none";
-    document.getElementById("progressBar").style.width = "0%";
-    document.getElementById("restartModal").style.display = "none";
+    state.current = 0;
+    state.score = 0;
+    state.correctAnswers = 0;
+    state.responseTimes = [];
+    state.pauseDurations = [];
+    state.pauseStart = 0;
+    elements.quizModal.style.display = 'none';
+    elements.score.style.display = 'none';
+    elements.highscore.style.display = 'none';
+    elements.closeBtn.style.display = 'none';
+    elements.stats.style.display = 'none';
+    elements.progressBar.style.width = '0%';
+    elements.restartModal.style.display = 'none';
 
-    // Direkt starten, wenn Kategorie angegeben
     if (category && questionSets[category]) {
       chooseCategory(category);
     } else {
-      // Fallback: Kategorieauswahl öffnen
-      document.getElementById("categoryModal").style.display = "flex";
+      elements.categoryModal.style.display = 'flex';
     }
-  }
+  };
 
-  function closeModal() {
-    document.getElementById("categoryModal").style.display = "none";
-  }
+  const closeModal = () => {
+    elements.categoryModal.style.display = 'none';
+  };
 
-  function chooseCategory(category) {
+  const chooseCategory = (category) => {
     closeModal();
-    let allQuestions = [...questionSets[category]];
+    if (!questionSets[category]) throw new Error(`Category "${category}" not found in questionSets`);
+
+    let allQuestions = [...questionSets[category].questions];
     allQuestions = shuffle(allQuestions);
-    if (questionCount !== 'all') {
-      allQuestions = allQuestions.slice(0, parseInt(questionCount));
+    if (state.questionCount !== 'all') {
+      allQuestions = allQuestions.slice(0, parseInt(state.questionCount));
     }
-    questions = allQuestions;
-    totalQuestions = questions.length;
-    questions.forEach(q => {
+    state.questions = allQuestions;
+    state.totalQuestions = state.questions.length;
+    state.questions.forEach(q => {
       const answersWithIndex = q.answers.map((answer, index) => ({ answer, index }));
       shuffle(answersWithIndex);
       q.shuffledAnswers = answersWithIndex.map(item => item.answer);
       q.correct = answersWithIndex.findIndex(item => item.index === q.correct);
     });
-    document.getElementById("quizModal").style.display = "flex";
+    elements.quizModal.style.display = 'flex';
     loadQuestion();
-  }
+  };
 
-  function loadQuestion() {
-    isPaused = false;
-    document.getElementById("pauseBtn").textContent = "⏸ Pause";
-    const q = questions[current];
-    document.getElementById("question").textContent = q.question;
-    document.getElementById("questionNumber").textContent = `Frage ${current + 1} von ${questions.length}`;
-    document.getElementById("currentScore").textContent = `Punkte: ${score}`;
-    const answers = document.getElementById("answers");
-    answers.innerHTML = "";
+  const loadQuestion = () => {
+    state.isPaused = false;
+    elements.pauseBtn.textContent = '⏸ Pause';
+    const q = state.questions[state.current];
+    elements.question.textContent = q.question;
+    elements.questionNumber.textContent = `Frage ${state.current + 1} von ${state.questions.length}`;
+    elements.currentScore.textContent = `Punkte: ${state.score}`;
+    elements.answers.innerHTML = '';
     q.shuffledAnswers.forEach((a, i) => {
-      const btn = document.createElement("button");
-      btn.textContent = a;
+      const btn = createElement('button', {}, [a]);
       btn.onclick = () => handleAnswer(i);
-      answers.appendChild(btn);
+      elements.answers.appendChild(btn);
     });
-    document.getElementById("badge").style.background = "#3498db";
-    document.getElementById("badge").innerHTML = '<i class="fas fa-question"></i>';
-    const nextBtn = document.getElementById("nextBtn");
-    nextBtn.style.display = "none";
-    nextBtn.textContent = (current === questions.length - 1) ? "Auswertung anzeigen" : "Nächste Frage";
-    document.getElementById("progressBar").style.width = ((current + 1) / questions.length * 100) + "%";
-    document.getElementById("explanation").style.display = "none";
-    document.getElementById("timerDisplay").style.display = withTimer ? "block" : "none";
-    document.getElementById("timerBarContainer").style.display = withTimer ? "block" : "none";
-    document.getElementById("pauseBtn").style.display = withTimer ? "block" : "none";
-    if (withTimer) startTimer();
-  }
+    elements.badge.style.background = '#3498db';
+    elements.badge.innerHTML = '<i class="fas fa-question"></i>';
+    elements.nextBtn.style.display = 'none';
+    elements.nextBtn.textContent = state.current === state.questions.length - 1 ? 'Auswertung anzeigen' : 'Nächste Frage';
+    elements.progressBar.style.width = `${((state.current + 1) / state.questions.length) * 100}%`;
+    elements.explanation.style.display = 'none';
+    elements.timerDisplay.style.display = state.withTimer ? 'block' : 'none';
+    elements.timerBarContainer.style.display = state.withTimer ? 'block' : 'none';
+    elements.pauseBtn.style.display = state.withTimer ? 'block' : 'none';
+    if (state.withTimer) startTimer();
+  };
 
-  function startTimer() {
+  const startTimer = () => {
     const TIME_RESOLUTION = 100;
     const TIME_LIMIT_SECONDS = 10;
-    timeLeft = TIME_LIMIT_SECONDS * 1000;
-    const display = document.getElementById("timerDisplay");
-    const bar = document.getElementById("timerBar");
-    
-    display.textContent = `⏳ ${(timeLeft / 1000).toFixed(1)} Sekunden`;
-    bar.style.width = "100%";
-    
-    if (timerInterval) clearInterval(timerInterval);
-    
-    timerInterval = setInterval(() => {
-      if (isPaused) return;
-      timeLeft -= TIME_RESOLUTION;
-      
-      const seconds = (timeLeft / 1000).toFixed(1);
-      display.textContent = `⏳ ${seconds} Sekunden`;
-      
-      const percentage = (timeLeft / (TIME_LIMIT_SECONDS * 1000)) * 100;
-      bar.style.width = `${percentage}%`;
-      
+    state.timeLeft = TIME_LIMIT_SECONDS * 1000;
+    elements.timerDisplay.textContent = `⏳ ${(state.timeLeft / 1000).toFixed(1)} Sekunden`;
+    elements.timerBar.style.width = '100%';
+
+    if (state.timerInterval) clearInterval(state.timerInterval);
+
+    state.timerInterval = setInterval(() => {
+      if (state.isPaused) return;
+      state.timeLeft -= TIME_RESOLUTION;
+
+      const seconds = (state.timeLeft / 1000).toFixed(1);
+      elements.timerDisplay.textContent = `⏳ ${seconds} Sekunden`;
+
+      const percentage = (state.timeLeft / (TIME_LIMIT_SECONDS * 1000)) * 100;
+      elements.timerBar.style.width = `${percentage}%`;
+
       if (percentage > 50) {
-        bar.style.background = '#2ecc71';
+        elements.timerBar.style.background = '#2ecc71';
       } else if (percentage > 20) {
-        bar.style.background = '#f39c12';
+        elements.timerBar.style.background = '#f39c12';
       } else {
-        bar.style.background = '#e74c3c';
+        elements.timerBar.style.background = '#e74c3c';
       }
-      
-      if (timeLeft <= 0) {
-        clearInterval(timerInterval);
-        timerInterval = null;
+
+      if (state.timeLeft <= 0) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
         handleAnswer(-1);
-        display.textContent = "⏰ Zeit abgelaufen!";
-  document.getElementById("pauseBtn").style.display = "none";
+        elements.timerDisplay.textContent = '⏰ Zeit abgelaufen!';
+        elements.pauseBtn.style.display = 'none';
       }
     }, TIME_RESOLUTION);
-  }
+  };
 
-  function togglePause() {
-    if (!withTimer) return;
-    isPaused = !isPaused;
-    if (isPaused) pauseStart = Date.now();
-    const pauseBtn = document.getElementById("pauseBtn");
-    if (!isPaused) {
-      const duration = Date.now() - pauseStart;
-      pauseDurations.push(duration);
+  const togglePause = () => {
+    if (!state.withTimer) return;
+    state.isPaused = !state.isPaused;
+    if (state.isPaused) {
+      state.pauseStart = Date.now();
+      state.pausedThisRound = true;
     }
-    pauseBtn.textContent = isPaused ? "▶ Fortfahren" : "⏸ Pause";
-    document.getElementById("timerDisplay").textContent = isPaused ? "⏸ Pausiert" : `⏳ ${(timeLeft / 1000).toFixed(1)} Sekunden`;
-  }
+    if (!state.isPaused) {
+      const duration = Date.now() - state.pauseStart;
+      state.pauseDurations.push(duration);
+      if (state.pausePenalty) {
+        state.penalties++;
+        state.score = Math.max(0, state.score - 1);
+        elements.currentScore.textContent = `Punkte: ${state.score}`;
+      }
+    }
+    elements.pauseBtn.textContent = state.isPaused ? '▶ Fortfahren' : '⏸ Pause';
+    elements.timerDisplay.textContent = state.isPaused ? '⏸ Pausiert' : `⏳ ${(state.timeLeft / 1000).toFixed(1)} Sekunden`;
+  };
 
-  function handleAnswer(index) {
-    if (isPaused && pauseStart) {
-      const duration = Date.now() - pauseStart;
-      pauseDurations.push(duration);
-      pauseStart = 0;
-      isPaused = false;
+  const handleAnswer = (index) => {
+    if (state.isPaused && state.pauseStart) {
+      const duration = Date.now() - state.pauseStart;
+      state.pauseDurations.push(duration);
+      state.pauseStart = 0;
+      state.isPaused = false;
+      if (state.pausePenalty && state.pausedThisRound) {
+        state.penalties++;
+        state.score = Math.max(0, state.score - 1);
+      }
     }
-    if (withTimer && timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-      document.getElementById("pauseBtn").style.display = "none";
-      document.getElementById("timerBarContainer").style.display = "none";
+    if (state.withTimer && state.timerInterval) {
+      clearInterval(state.timerInterval);
+      state.timerInterval = null;
+      elements.pauseBtn.style.display = 'none';
+      elements.timerBarContainer.style.display = 'none';
     }
-    const correct = questions[current].correct;
-    const badge = document.getElementById("badge");
-    const bonusPoints = withTimer ? Math.floor(timeLeft / 1000) : 0;
-    responseTimes.push(withTimer ? (10 * 1000 - timeLeft) : 0);
+    const correct = state.questions[state.current].correct;
+    const bonusPoints = state.withTimer ? Math.floor(state.timeLeft / 1000) : 0;
+    state.responseTimes.push(state.withTimer ? (10 * 1000 - state.timeLeft) : 0);
+    state.questions[state.current].userAnswer = index;
     if (index === correct) {
-      badge.style.background = "#2ecc71";
-      badge.innerHTML = '<i class="fas fa-check"></i>';
-      score += 1 + bonusPoints;
-      correctAnswers++;
+      elements.badge.style.background = '#2ecc71';
+      elements.badge.innerHTML = '<i class="fas fa-check"></i>';
+      state.score += 1 + bonusPoints;
+      state.correctAnswers++;
       if (bonusPoints > 0) {
-        const bonusFeedback = document.getElementById("bonusFeedback");
-        bonusFeedback.textContent = `+${bonusPoints} Bonus!`;
-        bonusFeedback.style.display = "block";
-        setTimeout(() => bonusFeedback.style.display = "none", 1000);
+        elements.bonusFeedback.textContent = `+${bonusPoints} Bonus!`;
+        elements.bonusFeedback.style.display = 'block';
+        setTimeout(() => elements.bonusFeedback.style.display = 'none', 1000);
       }
     } else {
-      badge.style.background = "#e74c3c";
-      badge.innerHTML = '<i class="fas fa-times"></i>';
+      elements.badge.style.background = '#e74c3c';
+      elements.badge.innerHTML = '<i class="fas fa-times"></i>';
     }
-    Array.from(document.getElementById("answers").children).forEach((btn, i) => {
+    Array.from(elements.answers.children).forEach((btn, i) => {
       btn.disabled = true;
-      if (i === correct) btn.style.background = "#2ecc71";
-      else if (i === index) btn.style.background = "#e74c3c";
+      btn.style.background = i === correct ? '#2ecc71' : i === index ? '#e74c3c' : btn.style.background;
     });
-    const explanationEl = document.getElementById("explanation");
-    explanationEl.textContent = questions[current].explanation;
-    explanationEl.style.display = "block";
-    document.getElementById("currentScore").textContent = `Punkte: ${score}`;
-    document.getElementById("nextBtn").style.display = "inline-block";
-  }
+    elements.explanation.textContent = state.questions[state.current].explanation;
+    elements.explanation.style.display = 'block';
+    elements.currentScore.textContent = `Punkte: ${state.score}`;
+    elements.nextBtn.style.display = 'inline-block';
+  };
 
-  function nextQuestion() {
-    current++;
-    if (current < questions.length) loadQuestion();
-    else showScore();
-  }
-
-  function showScore() {
-    const highscoreEl = document.getElementById("highscore");
-    const oldScore = parseInt(localStorage.getItem("quizHighscore") || "0");
-    if (score > oldScore) {
-      localStorage.setItem("quizHighscore", score);
-      highscoreEl.textContent = `🎉 Neuer Highscore: ${score}`;
+  const nextQuestion = () => {
+    state.current++;
+    if (state.current < state.questions.length) {
+      loadQuestion();
     } else {
-      highscoreEl.textContent = `🏆 Dein Highscore: ${oldScore}`;
+      showScore();
     }
-    document.getElementById("question").textContent = "Quiz beendet!";
-    document.getElementById("questionNumber").textContent = "";
-    document.getElementById("currentScore").textContent = "";
-    document.getElementById("timerDisplay").textContent = "";
-    document.getElementById("answers").innerHTML = "";
-    document.getElementById("badge").style.background = "#f39c12";
-    document.getElementById("badge").innerHTML = '<i class="fas fa-star"></i>';
-    document.getElementById("nextBtn").style.display = "none";
-    document.getElementById("score").textContent = `Du hast ${score} Punkte erzielt!`;
-    document.getElementById("score").style.display = "block";
-  document.getElementById("pauseBtn").style.display = "none";
-    highscoreEl.style.display = "block";
-    document.getElementById("closeBtn").style.display = "inline-block";
-    document.getElementById("progressBar").style.width = "100%";
+  };
 
-    const totalPauseMs = pauseDurations.reduce((a, b) => a + b, 0);
-    const totalResponseMs = responseTimes.reduce((a, b) => a + b, 0);
-    const avgResponseTime = responseTimes.length > 0 ? ((totalResponseMs - totalPauseMs) / responseTimes.length / 1000).toFixed(1) : 0;
+  const showScore = () => {
+    elements.explanation.style.display = 'none';
+    elements.bonusFeedback.style.display = 'none';
+
+    const oldScore = parseInt(localStorage.getItem('quizHighscore') || '0');
+    if (state.score > oldScore) {
+      localStorage.setItem('quizHighscore', state.score);
+      elements.highscore.textContent = `🎉 Neuer Highscore: ${state.score}`;
+    } else {
+      elements.highscore.textContent = `🏆 Dein Highscore: ${oldScore}`;
+    }
+    elements.question.textContent = 'Quiz beendet!';
+    elements.questionNumber.textContent = '';
+    elements.currentScore.textContent = '';
+    elements.timerDisplay.textContent = '';
+    elements.answers.innerHTML = '';
+    elements.badge.style.background = '#f39c12';
+    elements.badge.innerHTML = '<i class="fas fa-star"></i>';
+    elements.nextBtn.style.display = 'none';
+    elements.score.textContent = `Du hast ${state.score} Punkte erzielt!`;
+    elements.score.style.display = 'block';
+    elements.pauseBtn.style.display = 'none';
+    elements.highscore.style.display = 'block';
+    elements.closeBtn.style.display = 'inline-block';
+    elements.progressBar.style.width = '100%';
+
+    const totalPauseMs = state.pauseDurations.reduce((a, b) => a + b, 0, 0);
+    const totalResponseMs = state.responseTimes.reduce((a, b) => a + b, 0, 0);
+    const avgResponseTime = state.responseTimes.length > 0 ? ((totalResponseMs - totalPauseMs) / state.responseTimes.length / 1000).toFixed(1) : 0;
     const pauseSeconds = (totalPauseMs / 1000).toFixed(1);
-    const accuracy = ((correctAnswers / totalQuestions) * 100).toFixed(1);
-    document.getElementById("stats").innerHTML = `
-      <p>Durchschnittliche Antwortzeit: ${withTimer ? avgResponseTime : 'N/A'} Sekunden</p>
-      <p>Richtige Antworten: ${correctAnswers} von ${totalQuestions}</p>
+    const accuracy = ((state.correctAnswers / state.totalQuestions) * 100).toFixed(1);
+    elements.stats.innerHTML = `
+      <p>Durchschnittliche Antwortzeit: ${state.withTimer ? avgResponseTime : 'N/A'} Sekunden</p>
+      <p>Richtige Antworten: ${state.correctAnswers} von ${state.totalQuestions}</p>
       <p>Genauigkeit: ${accuracy}%</p>
-      <p>⏸️ Pausen: ${pauseDurations.length} (insgesamt ${pauseSeconds} Sekunden)</p>
+      <p>⏸️ Pausen: ${state.pauseDurations.length} (insgesamt ${pauseSeconds} Sekunden)</p>
+      ${state.pausePenalty ? `<p>Strafen für Pausen: ${state.penalties}</p>` : ''}
     `;
-    document.getElementById("stats").style.display = "block";
-  }
+    elements.stats.style.display = 'block';
 
-  function closeQuiz() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-      document.getElementById("pauseBtn").style.display = "none";
-      document.getElementById("timerBarContainer").style.display = "none";
+    const reviewContainer = createElement('div', { className: 'review-container' });
+    state.questions.forEach((q, idx) => {
+      const entry = createElement('div', {
+        className: `review-card ${q.userAnswer === q.correct ? 'correct' : q.userAnswer !== undefined ? 'incorrect' : 'unanswered'}`
+      });
+
+      const header = createElement('div', { className: 'review-card-header' }, [
+        createElement('span', { className: 'review-card-status' }, [
+          q.userAnswer === q.correct ? '✅' : q.userAnswer !== undefined ? '❌' : '⏰'
+        ]),
+        `Frage ${idx + 1}: ${q.question}`,
+        createElement('span', { className: 'review-card-toggle' }, ['▼'])
+      ]);
+
+      const body = createElement('div', { className: 'review-card-body' });
+      q.shuffledAnswers.forEach((ans, i) => {
+        const p = createElement('p', {
+          className: `review-answer ${
+            i === q.userAnswer && i === q.correct ? 'correct-answer' :
+            i === q.userAnswer && i !== q.correct && q.userAnswer !== undefined ? 'wrong-answer' :
+            i === q.correct ? 'correct-option' : ''
+          }`
+        }, [ans]);
+        body.appendChild(p);
+      });
+
+      const expl = createElement('p', { className: 'review-explanation' }, []);
+      expl.innerHTML = `<strong>Erklärung:</strong> ${q.explanation || "–"}`;
+      body.appendChild(expl);
+
+      header.onclick = () => {
+        body.classList.toggle('open');
+        const toggle = header.querySelector('.review-card-toggle');
+        toggle.textContent = body.classList.contains('open') ? '▲' : '▼';
+      };
+
+      entry.appendChild(header);
+      entry.appendChild(body);
+      reviewContainer.appendChild(entry);
+    });
+
+    elements.quizModal.querySelector('.quiz-card').appendChild(reviewContainer);
+  };
+
+  const closeQuiz = () => {
+    if (state.timerInterval) {
+      clearInterval(state.timerInterval);
+      state.timerInterval = null;
+      elements.pauseBtn.style.display = 'none';
+      elements.timerBarContainer.style.display = 'none';
     }
-    document.getElementById("quizModal").style.display = "none";
-    current = 0;
-    score = 0;
-    correctAnswers = 0;
-    responseTimes = [];
-    pauseDurations = [];
-    pauseStart = 0;
-    document.getElementById("score").style.display = "none";
-    document.getElementById("highscore").style.display = "none";
-    document.getElementById("closeBtn").style.display = "none";
-    document.getElementById("stats").style.display = "none";
-    document.getElementById("progressBar").style.width = "0%";
+    elements.quizModal.style.display = 'none';
+    state.current = 0;
+    state.score = 0;
+    state.correctAnswers = 0;
+    state.responseTimes = [];
+    state.pauseDurations = [];
+    state.pauseStart = 0;
+    state.pausedThisRound = false;
+    state.penalties = 0;
+    elements.score.style.display = 'none';
+    elements.highscore.style.display = 'none';
+    elements.closeBtn.style.display = 'none';
+    elements.stats.style.display = 'none';
+    elements.progressBar.style.width = '0%';
 
-    // Restart-Modal anzeigen oder komplett schließen
-    if (showRestart) {
-      document.getElementById("restartModal").style.display = "flex";
+    const reviewContainer = document.querySelector('.review-container');
+    if (reviewContainer) reviewContainer.remove();
+
+    if (state.showRestart) {
+      elements.restartModal.style.display = 'flex';
     }
-  }
+  };
 
-  return { init, open, closeModal, chooseCategory, nextQuestion, closeQuiz };
+  return { init, open, closeModal, chooseCategory, nextQuestion, closeQuiz, renderCategories };
 })();
 
 // Initialisierung beim Laden
-window.addEventListener("DOMContentLoaded", QuizApp.init);
+window.addEventListener('DOMContentLoaded', QuizApp.init);

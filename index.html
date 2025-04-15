@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Mein Quiz</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link rel="stylesheet" href="quiz.css">
   <style>
     body {
@@ -69,6 +70,16 @@
       color: #333;
     }
   </style>
+  <!-- Konfiguration für dynamische oder statische Kategorien -->
+  <script>
+    // Dynamische Erzeugung aktivieren und spezifische Kategorien auswählen
+    window.QuizConfig = { 
+      dynamic: true, 
+      //categories: ['general', 'science'] // , 'mixed', 'choose', 'general_with_penalty', 'quickstart'
+    };
+  </script>
+  <script src="questions.js"></script>
+  <script src="quiz.js"></script>
 </head>
 <body>
   <header>
@@ -77,38 +88,7 @@
   </header>
 
   <main class="quiz-links">
-    <div class="quiz-card-start" onclick="QuizApp.open({ questionCount: '3', category: 'general', withTimer: true, showRestart: true })">
-      <div class="icon">🧠</div>
-      <span>Allgemeinwissen (3 Fragen, mit Timer)</span>
-    </div>
-
-    <div class="quiz-card-start" onclick="QuizApp.open({ questionCount: '5', category: 'science', withTimer: false, showRestart: false })">
-      <div class="icon">🧪</div>
-      <span>Wissenschaft (5 Fragen, ohne Timer)</span>
-    </div>
-
-    <div class="quiz-card-start" onclick="QuizApp.open({ category: 'mixed', showRestart: true })">
-      <div class="icon">🎲</div>
-      <span>Zufallskategorie (alle Fragen, mit Timer)</span>
-    </div>
-
-    <div class="quiz-card-start" onclick="QuizApp.open({ choose: true })">
-      <div class="icon">🗂️</div>
-      <span>Kategorie frei wählen</span>
-    </div>
-	
-    <div class="quiz-card-start" onclick="QuizApp.open({ questionCount: '3', category: 'general', withTimer: true, pausePenalty: true })">
-      <div class="icon">🧠</div>
-      <span>Allgemeinwissen (3 Fragen, mit Timerstrafe)</span>
-    </div>
-
-    <div class="quiz-card-start" onclick="QuizApp.open({ questionCount: '1', category: 'general', withTimer: true, showRestart: true })">
-      <div class="icon">⚡</div>
-      <span>Quickstart (1 Frage, mit Timer)</span>
-    </div>
+    <!-- Kategorien werden dynamisch erzeugt -->
   </main>
-
-  <script src="questions.js"></script>
-  <script src="quiz.js"></script>
 </body>
 </html>
