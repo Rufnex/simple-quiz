@@ -1,3 +1,7 @@
+// Simple-Quiz – A simple quiz application
+// Author: Johannes Gamperl aka Rufnex (https://jg-webdesign.de)
+// License: Public Domain – A credit to the original author is appreciated but not required.
+
 const QuizApp = (() => {
   // Zentraler Zustand
   const state = {
@@ -18,6 +22,7 @@ const QuizApp = (() => {
     pausedThisRound: false,
     penalties: 0,
     pausePenalty: false,
+    hasAnswered: false, // Neuer Zustand, um Mehrfachantworten zu verhindern
   };
 
   // Mixed-Kategorie dynamisch füllen
@@ -70,22 +75,54 @@ const QuizApp = (() => {
     return element;
   };
 
-  // Hilfsfunktion: Kategorien-Liste dynamisch aus questionSets generieren
+  // Zentrale Funktion: Kategorien-Karte erstellen
+  const createCategoryCard = (cat, clickHandler) => {
+    const card = createElement('div', { className: 'category-card', 'data-category': cat.category }, [
+      createElement('span', {}, [cat.icon]),
+      cat.label,
+    ]);
+    card.addEventListener('click', clickHandler);
+    return card;
+  };
+
+  // Zentrale Funktion: Kategorien-Karte für Startseite erstellen
+  const createQuizCard = (cat, clickHandler) => {
+    const card = createElement('div', { className: 'quiz-card-start' }, [
+      createElement('div', { className: 'icon' }, [cat.icon]),
+      createElement('span', {}, [cat.label]),
+    ]);
+    card.addEventListener('click', clickHandler);
+    return card;
+  };
+
+  // Hilfsfunktion: Kategorien-Liste aus questionSets generieren
   const generateCategories = () => {
-    const config = window.QuizConfig || { dynamic: false };
+    const config = window.QuizConfig || {};
     let categories = Object.keys(questionSets).map(category => {
       const meta = questionSets[category].meta || { icon: '❓', label: category }; // Fallback
       return {
         category,
         icon: meta.icon,
         label: meta.label,
-        options: questionSets[category].options || { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false }, // Fallback-Optionen
+        options: questionSets[category].options || { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false },
       };
     });
 
-    // Filter: Nur Kategorien anzeigen, die in QuizConfig.categories aufgeführt sind (falls definiert und dynamic: true)
-    if (config.dynamic && config.categories) {
-      categories = categories.filter(cat => config.categories.includes(cat.category));
+    // Filter: Nur Kategorien anzeigen, die in QuizConfig.categories aufgeführt sind (falls definiert)
+    if (config.categories) {
+      const validCategories = config.categories.filter(cat => {
+        if (!questionSets[cat]) {
+          console.warn(`Kategorie "${cat}" in QuizConfig.categories ist ungültig und wird ignoriert.`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validCategories.length === 0) {
+        console.warn('Keine gültigen Kategorien in QuizConfig.categories gefunden. Zeige alle Kategorien an.');
+      } else {
+        categories = categories.filter(cat => validCategories.includes(cat.category));
+      }
     }
 
     // Sortierung: Alphabetisch nach Label
@@ -94,27 +131,20 @@ const QuizApp = (() => {
     return categories;
   };
 
-  // Kategorien dynamisch in index.html rendern
+  // Kategorien in index.html rendern
   const renderCategories = () => {
     const quizLinks = document.querySelector('.quiz-links');
     if (!quizLinks) throw new Error('Element with class "quiz-links" not found');
 
     const categories = generateCategories();
-
     quizLinks.innerHTML = ''; // Bestehende Karten entfernen
 
     categories.forEach(cat => {
-      // Spezielle Behandlung für "choose"-Option
       const options = cat.category === 'choose'
         ? { choose: true }
         : { ...cat.options, category: cat.category };
 
-      const card = createElement('div', { className: 'quiz-card-start' }, [
-        createElement('div', { className: 'icon' }, [cat.icon]),
-        createElement('span', {}, [cat.label]),
-      ]);
-
-      card.onclick = () => QuizApp.open(options);
+      const card = createQuizCard(cat, () => QuizApp.open(options));
       quizLinks.appendChild(card);
     });
   };
@@ -123,17 +153,20 @@ const QuizApp = (() => {
   const createCategoryModal = () => {
     const categories = generateCategories();
 
-    return createElement('div', { id: 'categoryModal', className: 'modal' }, [
+    const modal = createElement('div', { id: 'categoryModal', className: 'modal' }, [
       createElement('div', { className: 'modal-content' }, [
         createElement('h2', {}, ['Kategorie wählen']),
         createElement('div', { className: 'grid' }, categories.map(cat =>
-          createElement('div', { className: 'category-card', 'data-category': cat.category }, [
-            createElement('span', {}, [cat.icon]),
-            cat.label,
-          ])
+          createCategoryCard(cat, () => {
+            const category = cat.category;
+            localStorage.setItem('lastCategory', category);
+            chooseCategory(category);
+          })
         )),
       ]),
     ]);
+
+    return modal;
   };
 
   // Quiz-Modal erstellen
@@ -169,19 +202,22 @@ const QuizApp = (() => {
   const createRestartModal = () => {
     const categories = generateCategories();
 
-    return createElement('div', { id: 'restartModal', className: 'modal', style: { display: 'none' } }, [
+    const modal = createElement('div', { id: 'restartModal', className: 'modal', style: { display: 'none' } }, [
       createElement('div', { className: 'modal-content' }, [
         createElement('h2', {}, ['Quiz beendet']),
         createElement('p', {}, ['Möchtest du ein neues Quiz starten?']),
         createElement('div', { className: 'grid' }, categories.map(cat =>
-          createElement('div', { className: 'category-card', 'data-category': cat.category }, [
-            createElement('span', {}, [cat.icon]),
-            cat.label,
-          ])
+          createCategoryCard(cat, () => {
+            const category = cat.category;
+            elements.restartModal.style.display = 'none';
+            open({ questionCount: state.questionCount, category, withTimer: state.withTimer, showRestart: state.showRestart, pausePenalty: state.pausePenalty });
+          })
         )),
         createElement('button', { className: 'next-btn', id: 'closeRestartBtn' }, ['Schließen']),
       ]),
     ]);
+
+    return modal;
   };
 
   // Initialisierung
@@ -215,9 +251,8 @@ const QuizApp = (() => {
     elements.stats = getElement('stats');
     elements.progressBar = getElement('progressBar');
 
-    // Prüfe, ob dynamische Kategorien erzeugt werden sollen
-    const config = window.QuizConfig || { dynamic: false };
-    if (config.dynamic) {
+    // Prüfe, ob Kategorien erzeugt werden sollen
+    if (window.QuizConfig) {
       renderCategories();
     }
 
@@ -241,24 +276,6 @@ const QuizApp = (() => {
     elements.closeRestartBtn.addEventListener('click', () => {
       elements.restartModal.style.display = 'none';
     });
-
-    // Kategorieauswahl (Fallback)
-    document.querySelectorAll('#categoryModal .category-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const category = card.getAttribute('data-category');
-        localStorage.setItem('lastCategory', category);
-        chooseCategory(category);
-      });
-    });
-
-    // Restart-Kategorieauswahl
-    document.querySelectorAll('#restartModal .category-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const category = card.getAttribute('data-category');
-        elements.restartModal.style.display = 'none';
-        open({ questionCount: state.questionCount, category, withTimer: state.withTimer, showRestart: state.showRestart, pausePenalty: state.pausePenalty });
-      });
-    });
   };
 
   // Tastatureingaben
@@ -269,10 +286,20 @@ const QuizApp = (() => {
       elements.restartModal.style.display = 'none';
     }
     if (e.key === ' ' && elements.quizModal.style.display === 'flex') togglePause();
-    if (elements.quizModal.style.display === 'flex' && !state.isPaused) {
-      if (e.key === '1') handleAnswer(0);
-      if (e.key === '2') handleAnswer(1);
-      if (e.key === '3') handleAnswer(2);
+    if (elements.quizModal.style.display === 'flex') {
+      if (!state.isPaused && !state.hasAnswered) {
+        // Antwort auswählen mit 1, 2, 3, ...
+        const currentQuestion = state.questions[state.current];
+        const numAnswers = currentQuestion.shuffledAnswers.length;
+        const keyIndex = parseInt(e.key) - 1; // Tasten 1, 2, 3, ... zu Index 0, 1, 2, ...
+        if (keyIndex >= 0 && keyIndex < numAnswers) {
+          handleAnswer(keyIndex);
+        }
+      }
+      // Mit Enter zur nächsten Frage, wenn die Frage beantwortet wurde
+      if (e.key === 'Enter' && state.hasAnswered && !state.isPaused) {
+        nextQuestion();
+      }
     }
   };
 
@@ -285,6 +312,11 @@ const QuizApp = (() => {
     const category = options.category || null;
     state.withTimer = options.withTimer !== undefined ? options.withTimer : true;
     state.showRestart = options.showRestart !== undefined ? options.showRestart : true;
+
+    // SortOrder mit Priorität bestimmen
+    const config = window.QuizConfig || {};
+    const categoryOptions = category && questionSets[category] && questionSets[category].options ? questionSets[category].options : {};
+    const sortOrder = config.sortOrder !== undefined ? config.sortOrder : (categoryOptions.sortOrder || (options.sortOrder !== undefined ? options.sortOrder : 'random'));
 
     // Quiz zurücksetzen
     state.current = 0;
@@ -302,7 +334,7 @@ const QuizApp = (() => {
     elements.restartModal.style.display = 'none';
 
     if (category && questionSets[category]) {
-      chooseCategory(category);
+      chooseCategory(category, sortOrder);
     } else {
       elements.categoryModal.style.display = 'flex';
     }
@@ -312,14 +344,40 @@ const QuizApp = (() => {
     elements.categoryModal.style.display = 'none';
   };
 
-  const chooseCategory = (category) => {
+  const chooseCategory = (category, sortOrder) => {
     closeModal();
-    if (!questionSets[category]) throw new Error(`Category "${category}" not found in questionSets`);
+    if (!questionSets[category]) {
+      throw new Error(`Category "${category}" not found in questionSets. Available categories: ${Object.keys(questionSets).join(', ')}`);
+    }
 
     let allQuestions = [...questionSets[category].questions];
-    allQuestions = shuffle(allQuestions);
+    if (!allQuestions || allQuestions.length === 0) {
+      throw new Error(`No questions found for category "${category}".`);
+    }
+
+    // Fragen sortieren basierend auf sortOrder
+    switch (sortOrder) {
+      case 'random':
+        allQuestions = shuffle([...questionSets[category].questions]); // Direkte Kopie der ursprünglichen Fragen
+        break;
+      case 'a-z':
+        allQuestions = [...questionSets[category].questions].sort((a, b) => a.question.localeCompare(b.question));
+        break;
+      case 'default':
+        allQuestions = [...questionSets[category].questions]; // Direkte Kopie der ursprünglichen Fragen
+        break;
+      default:
+        console.warn(`Ungültiger sortOrder "${sortOrder}". Verwende "random" als Standard.`);
+        allQuestions = shuffle([...questionSets[category].questions]);
+        break;
+    }
+
     if (state.questionCount !== 'all') {
-      allQuestions = allQuestions.slice(0, parseInt(state.questionCount));
+      const count = parseInt(state.questionCount);
+      if (isNaN(count) || count <= 0) {
+        throw new Error(`Invalid questionCount "${state.questionCount}". Must be a positive number or "all".`);
+      }
+      allQuestions = allQuestions.slice(0, count);
     }
     state.questions = allQuestions;
     state.totalQuestions = state.questions.length;
@@ -335,6 +393,7 @@ const QuizApp = (() => {
 
   const loadQuestion = () => {
     state.isPaused = false;
+    state.hasAnswered = false; // Zurücksetzen, da eine neue Frage geladen wird
     elements.pauseBtn.textContent = '⏸ Pause';
     const q = state.questions[state.current];
     elements.question.textContent = q.question;
@@ -342,7 +401,10 @@ const QuizApp = (() => {
     elements.currentScore.textContent = `Punkte: ${state.score}`;
     elements.answers.innerHTML = '';
     q.shuffledAnswers.forEach((a, i) => {
-      const btn = createElement('button', {}, [a]);
+      const btn = createElement('button', { className: 'answer-btn' }, [
+        createElement('span', { className: 'answer-text' }, [a]),
+        createElement('span', { className: 'key-hint' }, [(i + 1).toString()]),
+      ]);
       btn.onclick = () => handleAnswer(i);
       elements.answers.appendChild(btn);
     });
@@ -416,6 +478,10 @@ const QuizApp = (() => {
   };
 
   const handleAnswer = (index) => {
+    // Verhindern, dass die Frage mehrfach beantwortet wird
+    if (state.hasAnswered) return;
+    state.hasAnswered = true;
+
     if (state.isPaused && state.pauseStart) {
       const duration = Date.now() - state.pauseStart;
       state.pauseDurations.push(duration);

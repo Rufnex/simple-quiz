@@ -1,9 +1,9 @@
 const questionSets = {
   general: {
     meta: { icon: '🧠', label: 'Allgemeinwissen' },
-    options: { questionCount: '3', withTimer: true, showRestart: true, pausePenalty: false },
+    options: { questionCount: '3', withTimer: true, showRestart: true, pausePenalty: false, sortOrder: 'a-z' },
     questions: [
-      { question: "Wie viele Planeten hat unser Sonnensystem?", answers: ["7", "8", "9"], correct: 1, explanation: "Unser Sonnensystem hat 8 Planeten: Merkur, Venus, Erde, Mars, Jupiter, Saturn, Uranus und Neptun." },
+      { question: "Wie viele Planeten hat unser Sonnensystem?", answers: ["7", "8", "9", "10"], correct: 1, explanation: "Unser Sonnensystem hat 8 Planeten: Merkur, Venus, Erde, Mars, Jupiter, Saturn, Uranus und Neptun." },
       { question: "Wie viele Kontinente gibt es?", answers: ["5", "6", "7"], correct: 2, explanation: "Es gibt 7 Kontinente: Afrika, Antarktika, Asien, Australien, Europa, Nordamerika und Südamerika." },
       { question: "Wer schrieb 'Faust'?", answers: ["Goethe", "Schiller", "Lessing"], correct: 0, explanation: "Johann Wolfgang von Goethe schrieb 'Faust', ein bedeutendes Werk der deutschen Literatur." },
       { question: "Welches Land hat die meisten Einwohner?", answers: ["Indien", "China", "USA"], correct: 1, explanation: "China hat die meisten Einwohner, mit über 1,4 Milliarden Menschen (Stand 2023)." },

@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link rel="stylesheet" href="quiz.css">
   <style>
+    /* Globales Box-Sizing, um Padding-Probleme zu vermeiden */
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+
     body {
       background: linear-gradient(135deg, #e0f7fa, #ffffff);
       color: #333;
@@ -17,6 +22,8 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      /* Verhindert horizontalen Scrollbalken */
+      overflow-x: hidden;
     }
 
     header {
@@ -35,7 +42,8 @@
 
     .quiz-links {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      /* Angepasste Grid für kleinere Bildschirme */
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 1.5rem;
       padding: 2rem;
       max-width: 1000px;
@@ -69,13 +77,25 @@
       font-weight: bold;
       color: #333;
     }
+
+    /* Media Query für sehr schmale Bildschirme */
+    @media (max-width: 320px) {
+      .quiz-links {
+        grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
+        padding: 1rem;
+      }
+
+      .quiz-card-start {
+        padding: 1rem;
+      }
+    }
   </style>
   <!-- Konfiguration für dynamische oder statische Kategorien -->
   <script>
     // Dynamische Erzeugung aktivieren und spezifische Kategorien auswählen
     window.QuizConfig = { 
-      dynamic: true, 
-      //categories: ['general', 'science'] // , 'mixed', 'choose', 'general_with_penalty', 'quickstart'
+      sortOrder: 'random',
+      categories: ['general', 'science'] // , 'mixed', 'choose', 'general_with_penalty', 'quickstart'
     };
   </script>
   <script src="questions.js"></script>
