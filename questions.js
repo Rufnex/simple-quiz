@@ -1,6 +1,6 @@
 const questionSets = {
   general: {
-    meta: { icon: '🧠', label: 'Allgemeinwissen' },
+    meta: { icon: 'ri-book-line', label: 'Allgemeinwissen' },
     options: { questionCount: '3', withTimer: true, showRestart: true, pausePenalty: false, sortOrder: 'a-z' },
     questions: [
       { question: "Wie viele Planeten hat unser Sonnensystem?", answers: ["7", "8", "9", "10"], correct: 1, explanation: "Unser Sonnensystem hat 8 Planeten: Merkur, Venus, Erde, Mars, Jupiter, Saturn, Uranus und Neptun." },
@@ -11,7 +11,7 @@ const questionSets = {
     ]
   },
   science: {
-    meta: { icon: '🧪', label: 'Wissenschaft' },
+    meta: { icon: 'ri-test-tube-line', label: 'Wissenschaft' },
     options: { questionCount: '5', withTimer: false, showRestart: false, pausePenalty: false },
     questions: [
       { question: "Was ist H2O?", answers: ["Sauerstoff", "Wasserstoff", "Wasser"], correct: 2, explanation: "H2O ist die chemische Formel für Wasser, bestehend aus zwei Wasserstoffatomen und einem Sauerstoffatom." },
@@ -22,7 +22,7 @@ const questionSets = {
     ]
   },
   art: {
-    meta: { icon: '🎨', label: 'Kunst' },
+    meta: { icon: 'ri-paint-brush-line', label: 'Kunst' },
     options: { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false },
     questions: [
       { question: "Wer malte die Mona Lisa?", answers: ["Van Gogh", "Picasso", "Da Vinci"], correct: 2, explanation: "Leonardo da Vinci malte die Mona Lisa, ein berühmtes Kunstwerk, das im Louvre hängt." },
@@ -33,7 +33,7 @@ const questionSets = {
     ]
   },
   geo: {
-    meta: { icon: '🌍', label: 'Geografie' },
+    meta: { icon: 'ri-earth-line', label: 'Geografie' },
     options: { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false },
     questions: [
       { question: "Hauptstadt von Australien?", answers: ["Sydney", "Melbourne", "Canberra"], correct: 2, explanation: "Canberra ist die Hauptstadt Australiens, gewählt als Kompromiss zwischen Sydney und Melbourne." },
@@ -44,7 +44,7 @@ const questionSets = {
     ]
   },
   music: {
-    meta: { icon: '🎵', label: 'Musik' },
+    meta: { icon: 'ri-music-2-line', label: 'Musik' },
     options: { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false },
     questions: [
       { question: "Welcher Ton ist am tiefsten?", answers: ["A", "C", "F"], correct: 0, explanation: "In der Standardstimmung ist A (La) tiefer als C (Do) und F (Fa)." },
@@ -55,17 +55,12 @@ const questionSets = {
     ]
   },
   mixed: {
-    meta: { icon: '🎲', label: 'Zufall' },
-    options: { questionCount: 'all', withTimer: true, showRestart: true, pausePenalty: false },
-    questions: [] // Wird in QuizApp gefüllt
-  },
-  general_with_penalty: {
-    meta: { icon: '🧠', label: 'Allgemeinwissen (mit Timerstrafe)' },
-    options: { questionCount: '3', withTimer: true, showRestart: true, pausePenalty: true },
+    meta: { icon: 'ri-dice-line', label: 'Zufall' },
+    options: { questionCount: 'all', withTimer: false, showRestart: false },
     questions: [] // Wird in QuizApp gefüllt
   },
   quickstart: {
-    meta: { icon: '⚡', label: 'Quickstart' },
+    meta: { icon: 'ri-flashlight-line', label: 'Quickstart' },
     options: { questionCount: '1', withTimer: true, showRestart: true, pausePenalty: false },
     questions: [] // Wird in QuizApp gefüllt
   }

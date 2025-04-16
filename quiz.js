@@ -23,6 +23,7 @@ const QuizApp = (() => {
     penalties: 0,
     pausePenalty: false,
     hasAnswered: false, // Neuer Zustand, um Mehrfachantworten zu verhindern
+    currentCategory: null, // Aktuelle Kategorie
   };
 
   // Mixed-Kategorie dynamisch füllen
@@ -31,7 +32,6 @@ const QuizApp = (() => {
     .flatMap(category => category.questions);
 
   // Spezielle Kategorien füllen
-  questionSets.general_with_penalty.questions = [...questionSets.general.questions];
   questionSets.quickstart.questions = [...questionSets.general.questions];
 
   // DOM-Elemente (Caching)
@@ -78,7 +78,9 @@ const QuizApp = (() => {
   // Zentrale Funktion: Kategorien-Karte erstellen
   const createCategoryCard = (cat, clickHandler) => {
     const card = createElement('div', { className: 'category-card', 'data-category': cat.category }, [
-      createElement('span', {}, [cat.icon]),
+      createElement('div', { className: 'icon' }, [
+        createElement('i', { className: cat.icon })
+      ]),
       cat.label,
     ]);
     card.addEventListener('click', clickHandler);
@@ -87,8 +89,10 @@ const QuizApp = (() => {
 
   // Zentrale Funktion: Kategorien-Karte für Startseite erstellen
   const createQuizCard = (cat, clickHandler) => {
-    const card = createElement('div', { className: 'quiz-card-start' }, [
-      createElement('div', { className: 'icon' }, [cat.icon]),
+    const card = createElement('div', { className: 'quiz-card-start', 'data-category': cat.category }, [
+      createElement('div', { className: 'icon' }, [
+        createElement('i', { className: cat.icon })
+      ]),
       createElement('span', {}, [cat.label]),
     ]);
     card.addEventListener('click', clickHandler);
@@ -99,7 +103,7 @@ const QuizApp = (() => {
   const generateCategories = () => {
     const config = window.QuizConfig || {};
     let categories = Object.keys(questionSets).map(category => {
-      const meta = questionSets[category].meta || { icon: '❓', label: category }; // Fallback
+      const meta = questionSets[category].meta || { icon: 'ri-question-line', label: category }; // Fallback
       return {
         category,
         icon: meta.icon,
@@ -174,7 +178,9 @@ const QuizApp = (() => {
     return createElement('div', { id: 'quizModal', className: 'modal', style: { display: 'none' } }, [
       createElement('div', { className: 'quiz-card' }, [
         createElement('div', { className: 'feedback-badge', id: 'closeQuiz', style: { left: '-14px', right: 'auto', top: '-14px', background: '#ddd', cursor: 'pointer' } }, ['✖']),
-        createElement('div', { className: 'feedback-badge', id: 'badge' }, [createElement('i', { className: 'fas fa-question' })]),
+        createElement('div', { className: 'feedback-badge', id: 'badge' }, [
+          createElement('i', { className: 'ri-question-line' })
+        ]),
         createElement('div', { className: 'progress-container' }, [
           createElement('div', { className: 'progress-bar', id: 'progressBar' }),
         ]),
@@ -194,6 +200,10 @@ const QuizApp = (() => {
         createElement('button', { className: 'next-btn', id: 'closeBtn', style: { display: 'none' } }, ['Quiz beenden']),
         createElement('div', { className: 'highscore', id: 'highscore', style: { display: 'none' } }),
         createElement('div', { className: 'stats', id: 'stats', style: { display: 'none' } }),
+        createElement('button', { className: 'reset-link', id: 'resetHighscoreBtn', style: { display: 'none' } }, [
+          createElement('i', { className: 'ri-delete-bin-line' }),
+          ' Highscore zurücksetzen'
+        ]),
       ]),
     ]);
   };
@@ -236,6 +246,7 @@ const QuizApp = (() => {
     elements.closeBtn = getElement('closeBtn');
     elements.pauseBtn = getElement('pauseBtn');
     elements.closeRestartBtn = getElement('closeRestartBtn');
+    elements.resetHighscoreBtn = getElement('resetHighscoreBtn');
     elements.badge = getElement('badge');
     elements.question = getElement('question');
     elements.questionNumber = getElement('questionNumber');
@@ -276,6 +287,7 @@ const QuizApp = (() => {
     elements.closeRestartBtn.addEventListener('click', () => {
       elements.restartModal.style.display = 'none';
     });
+    elements.resetHighscoreBtn.addEventListener('click', resetHighscore);
   };
 
   // Tastatureingaben
@@ -312,6 +324,7 @@ const QuizApp = (() => {
     const category = options.category || null;
     state.withTimer = options.withTimer !== undefined ? options.withTimer : true;
     state.showRestart = options.showRestart !== undefined ? options.showRestart : true;
+    state.currentCategory = category; // Speichere die aktuelle Kategorie
 
     // SortOrder mit Priorität bestimmen
     const config = window.QuizConfig || {};
@@ -329,6 +342,7 @@ const QuizApp = (() => {
     elements.score.style.display = 'none';
     elements.highscore.style.display = 'none';
     elements.closeBtn.style.display = 'none';
+    elements.resetHighscoreBtn.style.display = 'none';
     elements.stats.style.display = 'none';
     elements.progressBar.style.width = '0%';
     elements.restartModal.style.display = 'none';
@@ -409,7 +423,8 @@ const QuizApp = (() => {
       elements.answers.appendChild(btn);
     });
     elements.badge.style.background = '#3498db';
-    elements.badge.innerHTML = '<i class="fas fa-question"></i>';
+    elements.badge.innerHTML = ''; // Entferne vorherigen Inhalt
+    elements.badge.appendChild(createElement('i', { className: 'ri-question-line' }));
     elements.nextBtn.style.display = 'none';
     elements.nextBtn.textContent = state.current === state.questions.length - 1 ? 'Auswertung anzeigen' : 'Nächste Frage';
     elements.progressBar.style.width = `${((state.current + 1) / state.questions.length) * 100}%`;
@@ -504,7 +519,8 @@ const QuizApp = (() => {
     state.questions[state.current].userAnswer = index;
     if (index === correct) {
       elements.badge.style.background = '#2ecc71';
-      elements.badge.innerHTML = '<i class="fas fa-check"></i>';
+      elements.badge.innerHTML = ''; // Entferne vorherigen Inhalt
+      elements.badge.appendChild(createElement('i', { className: 'ri-check-line' }));
       state.score += 1 + bonusPoints;
       state.correctAnswers++;
       if (bonusPoints > 0) {
@@ -514,7 +530,8 @@ const QuizApp = (() => {
       }
     } else {
       elements.badge.style.background = '#e74c3c';
-      elements.badge.innerHTML = '<i class="fas fa-times"></i>';
+      elements.badge.innerHTML = ''; // Entferne vorherigen Inhalt
+      elements.badge.appendChild(createElement('i', { className: 'ri-close-line' }));
     }
     Array.from(elements.answers.children).forEach((btn, i) => {
       btn.disabled = true;
@@ -539,12 +556,14 @@ const QuizApp = (() => {
     elements.explanation.style.display = 'none';
     elements.bonusFeedback.style.display = 'none';
 
-    const oldScore = parseInt(localStorage.getItem('quizHighscore') || '0');
+    // Highscore pro Kategorie laden
+    const highscoreKey = `quizHighscore_${state.currentCategory}`;
+    const oldScore = parseInt(localStorage.getItem(highscoreKey) || '0');
     if (state.score > oldScore) {
-      localStorage.setItem('quizHighscore', state.score);
-      elements.highscore.textContent = `🎉 Neuer Highscore: ${state.score}`;
+      localStorage.setItem(highscoreKey, state.score);
+      elements.highscore.textContent = `🎉 Neuer Highscore für ${questionSets[state.currentCategory].meta.label}: ${state.score}`;
     } else {
-      elements.highscore.textContent = `🏆 Dein Highscore: ${oldScore}`;
+      elements.highscore.textContent = `🏆 Dein Highscore für ${questionSets[state.currentCategory].meta.label}: ${oldScore}`;
     }
     elements.question.textContent = 'Quiz beendet!';
     elements.questionNumber.textContent = '';
@@ -552,9 +571,9 @@ const QuizApp = (() => {
     elements.timerDisplay.textContent = '';
     elements.answers.innerHTML = '';
     elements.badge.style.background = '#f39c12';
-    elements.badge.innerHTML = '<i class="fas fa-star"></i>';
+    elements.badge.innerHTML = ''; // Entferne vorherigen Inhalt
+    elements.badge.appendChild(createElement('i', { className: 'ri-star-line' }));
     elements.nextBtn.style.display = 'none';
-    elements.score.textContent = `Du hast ${state.score} Punkte erzielt!`;
     elements.score.style.display = 'block';
     elements.pauseBtn.style.display = 'none';
     elements.highscore.style.display = 'block';
@@ -566,13 +585,21 @@ const QuizApp = (() => {
     const avgResponseTime = state.responseTimes.length > 0 ? ((totalResponseMs - totalPauseMs) / state.responseTimes.length / 1000).toFixed(1) : 0;
     const pauseSeconds = (totalPauseMs / 1000).toFixed(1);
     const accuracy = ((state.correctAnswers / state.totalQuestions) * 100).toFixed(1);
-    elements.stats.innerHTML = `
-      <p>Durchschnittliche Antwortzeit: ${state.withTimer ? avgResponseTime : 'N/A'} Sekunden</p>
+
+    // Nur die durchschnittliche Antwortzeit anzeigen, wenn der Timer aktiviert ist
+    let statsHtml = `
       <p>Richtige Antworten: ${state.correctAnswers} von ${state.totalQuestions}</p>
       <p>Genauigkeit: ${accuracy}%</p>
       <p>⏸️ Pausen: ${state.pauseDurations.length} (insgesamt ${pauseSeconds} Sekunden)</p>
-      ${state.pausePenalty ? `<p>Strafen für Pausen: ${state.penalties}</p>` : ''}
     `;
+    if (state.withTimer) {
+      statsHtml = `<p>Durchschnittliche Antwortzeit: ${avgResponseTime} Sekunden</p>` + statsHtml;
+    }
+    if (state.pausePenalty) {
+      statsHtml += `<p>Strafen für Pausen: ${state.penalties}</p>`;
+    }
+    elements.stats.innerHTML = statsHtml;
+
     elements.stats.style.display = 'block';
 
     const reviewContainer = createElement('div', { className: 'review-container' });
@@ -583,7 +610,7 @@ const QuizApp = (() => {
 
       const header = createElement('div', { className: 'review-card-header' }, [
         createElement('span', { className: 'review-card-status' }, [
-          q.userAnswer === q.correct ? '✅' : q.userAnswer !== undefined ? '❌' : '⏰'
+          createElement('i', { className: q.userAnswer === q.correct ? 'ri-check-line' : q.userAnswer !== undefined ? 'ri-close-line' : 'ri-timer-line' })
         ]),
         `Frage ${idx + 1}: ${q.question}`,
         createElement('span', { className: 'review-card-toggle' }, ['▼'])
@@ -616,7 +643,20 @@ const QuizApp = (() => {
       reviewContainer.appendChild(entry);
     });
 
-    elements.quizModal.querySelector('.quiz-card').appendChild(reviewContainer);
+    // Füge den "Highscore zurücksetzen"-Button nach dem Review-Bereich hinzu
+    const quizCard = elements.quizModal.querySelector('.quiz-card');
+    quizCard.appendChild(reviewContainer);
+    elements.resetHighscoreBtn.style.display = 'inline-block';
+    quizCard.appendChild(elements.resetHighscoreBtn);
+  };
+
+  // Funktion zum Zurücksetzen des Highscores für die aktuelle Kategorie
+  const resetHighscore = () => {
+    if (state.currentCategory) {
+      const highscoreKey = `quizHighscore_${state.currentCategory}`;
+      localStorage.removeItem(highscoreKey);
+      elements.highscore.textContent = `🏆 Dein Highscore für ${questionSets[state.currentCategory].meta.label}: 0`;
+    }
   };
 
   const closeQuiz = () => {
@@ -638,6 +678,7 @@ const QuizApp = (() => {
     elements.score.style.display = 'none';
     elements.highscore.style.display = 'none';
     elements.closeBtn.style.display = 'none';
+    elements.resetHighscoreBtn.style.display = 'none';
     elements.stats.style.display = 'none';
     elements.progressBar.style.width = '0%';
 
@@ -649,7 +690,7 @@ const QuizApp = (() => {
     }
   };
 
-  return { init, open, closeModal, chooseCategory, nextQuestion, closeQuiz, renderCategories };
+  return { init, open, closeModal, chooseCategory, nextQuestion, closeQuiz, renderCategories, resetHighscore };
 })();
 
 // Initialisierung beim Laden

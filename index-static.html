@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Quiz - Testkonfigurationen</title>
+  <!-- RemixIcon lokal einbinden -->
+  <link rel="stylesheet" href="fonts/remixicon.css">
+  <!-- Quiz CSS -->
+  <link rel="stylesheet" href="quiz.css">
+</head>
+<body>
+  <main class="quiz-links">
+    <!-- Testkonfiguration 1: Standardkonfiguration (general) -->
+    <div class="quiz-card-start" data-category="general" onclick="QuizApp.open({ category: 'general' })">
+      <div class="icon">
+        <i class="ri-book-line"></i>
+      </div>
+      <span>Allgemeinwissen (Standard)</span>
+      <p>Alle Fragen, mit Timer, Neustart an, keine Pausenstrafe, zufällige Sortierung</p>
+    </div>
+
+    <!-- Testkonfiguration 2: Wenige Fragen ohne Timer (general) -->
+    <div class="quiz-card-start" data-category="general" onclick="QuizApp.open({ questionCount: '2', category: 'general', withTimer: false, pausePenalty: true })">
+      <div class="icon">
+        <i class="ri-book-line"></i>
+      </div>
+      <span>Allgemeinwissen (2 Fragen, kein Timer)</span>
+      <p>2 Fragen, ohne Timer, Neustart an, Pausenstrafe an, zufällige Sortierung</p>
+    </div>
+
+    <!-- Testkonfiguration 3: Alphabetische Sortierung mit Timer (science) -->
+    <div class="quiz-card-start" data-category="science" onclick="QuizApp.open({ category: 'science', sortOrder: 'a-z', withTimer: true, showRestart: false })">
+      <div class="icon">
+        <i class="ri-test-tube-line"></i>
+      </div>
+      <span>Wissenschaft (alphabetisch, kein Neustart)</span>
+      <p>Alle Fragen, mit Timer, kein Neustart, keine Pausenstrafe, alphabetische Sortierung</p>
+    </div>
+
+    <!-- Testkonfiguration 4: Gemischte Kategorie mit Pausenstrafe (mixed) -->
+    <div class="quiz-card-start" data-category="mixed" onclick="QuizApp.open({ category: 'mixed', sortOrder: 'random', pausePenalty: true })">
+      <div class="icon">
+        <i class="ri-dice-line"></i>
+      </div>
+      <span>Gemischte Fragen (Pausenstrafe)</span>
+      <p>Alle Fragen, mit Timer, Neustart an, Pausenstrafe an, zufällige Sortierung</p>
+    </div>
+
+    <!-- Testkonfiguration 5: Schnellstart ohne Timer (quickstart) -->
+    <div class="quiz-card-start" data-category="quickstart" onclick="QuizApp.open({ category: 'quickstart', questionCount: '1', withTimer: false })">
+      <div class="icon">
+        <i class="ri-flashlight-line"></i>
+      </div>
+      <span>Schnellstart (1 Frage, kein Timer)</span>
+      <p>1 Frage, ohne Timer, Neustart an, keine Pausenstrafe, zufällige Sortierung</p>
+    </div>
+
+    <!-- Testkonfiguration 6: Kategorie mit Pausenstrafe (general_with_penalty) -->
+    <div class="quiz-card-start" data-category="general_with_penalty" onclick="QuizApp.open({ category: 'general_with_penalty', withTimer: true, pausePenalty: true, sortOrder: 'default' })">
+      <div class="icon">
+        <i class="ri-book-line"></i>
+      </div>
+      <span>Allgemeinwissen mit Strafe (default Sortierung)</span>
+      <p>Alle Fragen, mit Timer, Neustart an, Pausenstrafe an, default Sortierung</p>
+    </div>
+
+    <!-- Testkonfiguration 7: Kategorieauswahl-Modal -->
+    <div class="quiz-card-start" onclick="QuizApp.open({ choose: true })">
+      <div class="icon">
+        <i class="ri-search-line"></i>
+      </div>
+      <span>Kategorieauswahl</span>
+      <p>Öffnet das Kategorieauswahl-Modal (Standardoptionen)</p>
+    </div>
+  </main>
+
+  <!-- Quiz JavaScript -->
+  <script src="questions.js"></script>
+  <script src="quiz.js"></script>
+</body>
+</html>
