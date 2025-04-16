@@ -1,4 +1,4 @@
-// Simple-Quiz – A simple quiz application
+// Simple-Quiz
 // Author: Johannes Gamperl aka Rufnex (https://jg-webdesign.de)
 // License: Public Domain – A credit to the original author is appreciated but not required.
 
